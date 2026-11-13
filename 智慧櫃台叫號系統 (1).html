@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧櫃台叫號系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 lg:px-8 py-3 flex items-center justify-between shrink-0 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center">
+                <i class="fa-solid fa-bullhorn text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    智慧櫃台叫號系統 <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Pro</span>
+                </h1>
+                <p class="text-xs text-slate-400">大螢幕展示與櫃台管理方案</p>
+            </div>
+        </div>
+
+        <!-- View Switcher & Quick Actions -->
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <div class="bg-slate-900/80 p-1 rounded-xl border border-slate-700 flex">
+                <button onclick="switchView('display')" id="btn-view-display" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow">
+                    <i class="fa-solid fa-tv"></i> <span class="hidden sm:inline">大螢幕展示端</span><span class="sm:hidden">展示端</span>
+                </button>
+                <button onclick="requestSwitchToCounter()" id="btn-view-counter" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-desktop"></i> <span class="hidden sm:inline">櫃台操作端</span><span class="sm:hidden">操作端</span>
+                </button>
+            </div>
+
+            <button onclick="testAudioSpeech()" class="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-xl transition border border-indigo-500/40 text-xs font-semibold flex items-center gap-1.5 shadow-sm" title="測試語音輸出">
+                <i class="fa-solid fa-volume-high"></i> <span class="hidden md:inline">測試語音</span>
+            </button>
+
+            <button onclick="openSettingsModal()" class="p-2.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition border border-slate-600/50 shadow-sm" title="系統設定">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 overflow-hidden relative flex flex-col">
+
+        <!-- ==================== DISPLAY VIEW (大螢幕展示端) ==================== -->
+        <div id="view-display" class="flex-1 flex flex-col lg:flex-row overflow-y-auto p-4 lg:p-6 gap-6 bg-slate-900">
+            <!-- Left Main Spotlight -->
+            <div class="flex-1 flex flex-col gap-6">
+                <!-- Current Calling Spotlight Box -->
+                <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 border-2 border-indigo-500/40 rounded-3xl p-6 lg:p-10 shadow-2xl relative overflow-hidden flex flex-col justify-between min-h-[340px]">
+                    <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                    
+                    <div class="flex items-center justify-between z-10">
+                        <div class="flex items-center gap-2 px-3 py-1 bg-indigo-500/20 border border-indigo-500/40 rounded-full text-indigo-300 text-xs sm:text-sm font-semibold tracking-wider uppercase animate-pulse">
+                            <i class="fa-solid fa-volume-high"></i> 目前叫號
+                        </div>
+                        <div id="display-current-time" class="text-xs sm:text-sm font-medium text-slate-400">
+                            --:--:--
+                        </div>
+                    </div>
+
+                    <div class="my-auto py-6 text-center z-10">
+                        <div id="display-active-counter" class="text-indigo-400 font-bold text-xl sm:text-2xl mb-2 tracking-wide">
+                            請選擇櫃台或等待叫號
+                        </div>
+                        <div id="display-active-number" class="text-7xl sm:text-9xl font-black text-white tracking-widest drop-shadow-[0_10px_20px_rgba(99,102,241,0.4)]">
+                            ----
+                        </div>
+                    </div>
+
+                    <div class="text-center text-xs sm:text-sm text-slate-400 z-10 border-t border-slate-800 pt-4 flex justify-between items-center">
+                        <span>請留意語音播報及燈號指示</span>
+                        <button onclick="repeatCurrentCallDisplay()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-lg text-xs font-medium transition border border-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right"></i> 重播語音
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent History -->
+                <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 lg:p-5 shadow-lg">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-history text-indigo-400"></i> 最近叫號紀錄
+                    </h3>
+                    <div id="display-history-list" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 text-center text-slate-500 text-xs">
+                            尚無紀錄
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Waiting List & Ticket -->
+            <div class="w-full lg:w-96 shrink-0 flex flex-col gap-6">
+                <!-- Take Ticket Card -->
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl text-center">
+                    <h3 class="text-base font-bold text-white mb-2">現場自助取號</h3>
+                    <p class="text-xs text-slate-400 mb-4">點擊下方按鈕即可領取排隊號碼牌</p>
+                    <button onclick="takeNewTicket()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition transform active:scale-98 flex items-center justify-center gap-2 text-base">
+                        <i class="fa-solid fa-ticket"></i> 抽取號碼牌
+                    </button>
+                </div>
+
+                <!-- Waiting List -->
+                <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 lg:p-5 shadow-lg flex-1 flex flex-col min-h-[300px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-amber-400"></i> 等待中清單
+                        </h3>
+                        <span id="waiting-count-badge" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-full border border-amber-500/30">0 人</span>
+                    </div>
+                    
+                    <div id="display-waiting-list" class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[380px]">
+                        <div class="text-center py-8 text-slate-500 text-xs">
+                            目前沒有等待中的號碼
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== COUNTER VIEW (櫃台操作端) ==================== -->
+        <div id="view-counter" class="flex-1 hidden flex-col lg:flex-row overflow-y-auto p-4 lg:p-6 gap-6 bg-slate-950">
+            <!-- Left Counter Control Panel -->
+            <div class="w-full lg:w-1/3 flex flex-col gap-6">
+                <!-- Counter Selector -->
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
+                    <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-desktop text-indigo-400"></i> 櫃台控制台設定
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">選擇目前操作櫃台</label>
+                            <div class="flex gap-2">
+                                <select id="counter-select" onchange="changeActiveCounter(this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+                                </select>
+                                <button onclick="openAddCounterModal()" class="px-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm transition shadow" title="新增櫃台">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400">目前櫃台</div>
+                                <div id="ctrl-counter-name" class="text-sm font-bold text-white">載入中...</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-slate-400">正在處理</div>
+                                <div id="ctrl-current-serving" class="text-base font-black text-indigo-400">----</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+                    <h3 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i> 叫號動作
+                    </h3>
+
+                    <button onclick="callNextNumber()" class="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition transform active:scale-98 flex items-center justify-center gap-2 text-base">
+                        <i class="fa-solid fa-bullhorn text-lg"></i> 叫下一號 (Call Next)
+                    </button>
+
+                    <div class="grid grid-cols-2 gap-3 mt-1">
+                        <button onclick="repeatCurrentCall()" class="py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition border border-slate-600 flex items-center justify-center gap-2 text-sm shadow-sm">
+                            <i class="fa-solid fa-rotate-right text-indigo-400"></i> 重播號碼
+                        </button>
+                        <button onclick="skipCurrentNumber()" class="py-3 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl transition border border-slate-600 flex items-center justify-center gap-2 text-sm shadow-sm">
+                            <i class="fa-solid fa-forward text-amber-400"></i> 過號跳過
+                        </button>
+                    </div>
+
+                    <button onclick="completeCurrentNumber()" class="w-full py-3 bg-slate-700 hover:bg-slate-600 text-emerald-300 font-semibold rounded-xl transition border border-slate-600 flex items-center justify-center gap-2 text-sm shadow-sm mt-1">
+                        <i class="fa-solid fa-check text-emerald-400"></i> 完成當前叫號
+                    </button>
+                </div>
+
+                <!-- Manual Issue Ticket -->
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl text-center">
+                    <button onclick="takeNewTicket()" class="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-semibold transition border border-slate-600 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-ticket text-indigo-400"></i> 櫃台手動發號碼牌
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Queue Table & Management -->
+            <div class="flex-1 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-indigo-400"></i> 完整號碼狀態管理
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="resetAllData()" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold rounded-lg border border-rose-500/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-trash-can"></i> 重置所有資料
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium transition shadow">全部</button>
+                    <button onclick="setFilter('waiting')" id="filter-waiting" class="px-3 py-1.5 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg text-xs font-medium transition">等待中</button>
+                    <button onclick="setFilter('calling')" id="filter-calling" class="px-3 py-1.5 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg text-xs font-medium transition">叫號中</button>
+                    <button onclick="setFilter('completed')" id="filter-completed" class="px-3 py-1.5 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg text-xs font-medium transition">已完成</button>
+                    <button onclick="setFilter('skipped')" id="filter-skipped" class="px-3 py-1.5 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg text-xs font-medium transition">已過號</button>
+                </div>
+
+                <!-- Table -->
+                <div class="flex-1 overflow-y-auto rounded-xl border border-slate-700/80 bg-slate-900/60">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800/80 text-slate-400 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700">
+                                <th class="p-3">號碼</th>
+                                <th class="p-3">狀態</th>
+                                <th class="p-3">服務櫃台</th>
+                                <th class="p-3">時間</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-table-body" class="divide-y divide-slate-800 text-xs sm:text-sm">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Password Prompt Modal for Counter Login -->
+    <div id="modal-password" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-indigo-400"></i> 櫃台操作端登入驗證
+                </h3>
+                <button onclick="closePasswordModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-300 mb-4">請輸入櫃台操作密碼以繼續存取管理端功能：</p>
+
+            <form onsubmit="verifyPassword(event)">
+                <input type="password" id="counter-password-input" placeholder="請輸入密碼" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mb-4">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closePasswordModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow">登入解鎖</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-indigo-400"></i> 系統設定
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">語音播報設定</label>
+                    <div class="flex items-center justify-between bg-slate-800 p-3 rounded-xl border border-slate-700">
+                        <span class="text-sm text-slate-200">啟用語音合成 (Speech Synthesis)</span>
+                        <input type="checkbox" id="setting-voice-enabled" checked class="w-4 h-4 accent-indigo-600 rounded">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">號碼前綴字元</label>
+                    <input type="text" id="setting-prefix" value="A" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">櫃台清單管理</label>
+                    <div id="settings-counter-list" class="space-y-2 max-h-40 overflow-y-auto mb-2 pr-1">
+                    </div>
+                    <button onclick="openAddCounterModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-plus"></i> 新增櫃台
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">取消</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Counter Modal -->
+    <div id="modal-add-counter" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-desktop text-indigo-400"></i> 新增服務櫃台
+                </h3>
+                <button onclick="closeAddCounterModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">櫃台名稱 / 代號</label>
+                    <input type="text" id="new-counter-name" placeholder="例如：櫃台 C 或 3 號窗口" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="closeAddCounterModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">取消</button>
+                <button onclick="confirmAddCounter()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow">確認新增</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== SCRIPT ==================== -->
+    <script>
+        const CORRECT_PASSWORD = '20190309';
+        const STORAGE_KEY = 'smart_queue_system_v3';
+        const channel = new BroadcastChannel('smart_queue_channel_v3');
+
+        let state = {
+            counters: [
+                { id: 'c1', name: '櫃台 A' },
+                { id: 'c2', name: '櫃台 B' }
+            ],
+            activeCounterId: 'c1',
+            tickets: [],
+            nextTicketNum: 1,
+            settings: {
+                voiceEnabled: true,
+                prefix: 'A'
+            },
+            filter: 'all',
+            counterUnlocked: false
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            initClock();
+            unlockAudio();
+
+            if (state.tickets.length === 0) {
+                for (let i = 1; i <= 3; i++) {
+                    createTicketInternal();
+                }
+                saveStateAndBroadcast();
+            }
+
+            renderAll();
+
+            // BroadcastChannel synchronization
+            channel.onmessage = (event) => {
+                if (event.data && event.data.type === 'STATE_UPDATE') {
+                    const localUnlocked = state.counterUnlocked;
+                    state = event.data.state;
+                    state.counterUnlocked = localUnlocked; // preserve session login state
+                    renderAll();
+                }
+            };
+
+            window.addEventListener('storage', (e) => {
+                if (e.key === STORAGE_KEY && e.newValue) {
+                    try {
+                        const parsed = JSON.parse(e.newValue);
+                        const localUnlocked = state.counterUnlocked;
+                        state = { ...state, ...parsed };
+                        state.counterUnlocked = localUnlocked;
+                        renderAll();
+                    } catch (err) {
+                        console.error('Storage parse error:', err);
+                    }
+                }
+            });
+        });
+
+        function unlockAudio() {
+            const handler = () => {
+                if ('speechSynthesis' in window) {
+                    try {
+                        const utterance = new SpeechSynthesisUtterance('');
+                        window.speechSynthesis.speak(utterance);
+                    } catch(e) {}
+                }
+                window.removeEventListener('click', handler);
+                window.removeEventListener('touchstart', handler);
+                window.removeEventListener('keydown', handler);
+            };
+            window.addEventListener('click', handler);
+            window.addEventListener('touchstart', handler);
+            window.addEventListener('keydown', handler);
+        }
+
+        function testAudioSpeech() {
+            speakCall('櫃台 A', 'A-001', true);
+            showToast('已觸發語音測試，請確認音量', 'info');
+        }
+
+        function saveStateAndBroadcast() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                channel.postMessage({ type: 'STATE_UPDATE', state: state });
+            } catch (e) {
+                console.error('Save error:', e);
+            }
+        }
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                }
+            } catch (e) {
+                console.error('Load error:', e);
+            }
+        }
+
+        function initClock() {
+            const update = () => {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false });
+                const el = document.getElementById('display-current-time');
+                if (el) el.textContent = timeStr;
+            };
+            update();
+            setInterval(update, 1000);
+        }
+
+        function switchView(viewName) {
+            const displayView = document.getElementById('view-display');
+            const counterView = document.getElementById('view-counter');
+            const btnDisplay = document.getElementById('btn-view-display');
+            const btnCounter = document.getElementById('btn-view-counter');
+
+            if (viewName === 'display') {
+                displayView.classList.remove('hidden');
+                counterView.classList.add('hidden');
+                btnDisplay.className = "px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow";
+                btnCounter.className = "px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white";
+            } else {
+                displayView.classList.add('hidden');
+                counterView.classList.remove('hidden');
+                btnCounter.className = "px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow";
+                btnDisplay.className = "px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white";
+            }
+        }
+
+        function requestSwitchToCounter() {
+            if (state.counterUnlocked) {
+                switchView('counter');
+            } else {
+                document.getElementById('counter-password-input').value = '';
+                document.getElementById('modal-password').classList.remove('hidden');
+            }
+        }
+
+        function verifyPassword(e) {
+            e.preventDefault();
+            const val = document.getElementById('counter-password-input').value;
+            if (val === CORRECT_PASSWORD) {
+                state.counterUnlocked = true;
+                closePasswordModal();
+                switchView('counter');
+                showToast('密碼正確，已成功登入櫃台操作端', 'success');
+            } else {
+                showToast('密碼錯誤，請重新輸入（提示: 20190309）', 'warning');
+            }
+        }
+
+        function closePasswordModal() {
+            document.getElementById('modal-password').classList.add('hidden');
+        }
+
+        function createTicketInternal() {
+            const numStr = String(state.nextTicketNum).padStart(3, '0');
+            const fullNum = `${state.settings.prefix}-${numStr}`;
+            const ticket = {
+                id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                number: fullNum,
+                status: 'waiting',
+                counterId: null,
+                time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+            };
+            state.tickets.push(ticket);
+            state.nextTicketNum++;
+            return ticket;
+        }
+
+        function takeNewTicket() {
+            const newT = createTicketInternal();
+            saveStateAndBroadcast();
+            renderAll();
+            showToast(`已成功取號：${newT.number}`, 'success');
+        }
+
+        function changeActiveCounter(id) {
+            state.activeCounterId = id;
+            saveStateAndBroadcast();
+            renderAll();
+        }
+
+        function callNextNumber() {
+            const waitingTicket = state.tickets.find(t => t.status === 'waiting');
+            if (!waitingTicket) {
+                showToast('目前沒有等待中的號碼！', 'warning');
+                return;
+            }
+
+            waitingTicket.status = 'calling';
+            waitingTicket.counterId = state.activeCounterId;
+            waitingTicket.time = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+            saveStateAndBroadcast();
+            renderAll();
+
+            const cObj = state.counters.find(c => c.id === state.activeCounterId);
+            speakCall(cObj ? cObj.name : '櫃台', waitingTicket.number);
+            showToast(`正在叫號：${waitingTicket.number}`, 'info');
+        }
+
+        function repeatCurrentCall() {
+            const current = state.tickets.find(t => t.status === 'calling' && t.counterId === state.activeCounterId) ||
+                              state.tickets.filter(t => t.status === 'calling').pop();
+            if (!current) {
+                showToast('目前沒有正在叫號的號碼可重播', 'warning');
+                return;
+            }
+            const cObj = state.counters.find(c => c.id === current.counterId);
+            speakCall(cObj ? cObj.name : '櫃台', current.number);
+            showToast(`重播號碼：${current.number}`, 'info');
+        }
+
+        function repeatCurrentCallDisplay() {
+            const current = state.tickets.filter(t => t.status === 'calling').pop() || state.tickets.filter(t => t.status === 'completed').pop();
+            if (!current) {
+                showToast('目前沒有可重播的號碼', 'warning');
+                return;
+            }
+            const cObj = state.counters.find(c => c.id === current.counterId);
+            speakCall(cObj ? cObj.name : '櫃台', current.number);
+            showToast(`重播號碼：${current.number}`, 'info');
+        }
+
+        function skipCurrentNumber() {
+            const current = state.tickets.find(t => t.status === 'calling' && t.counterId === state.activeCounterId);
+            if (!current) {
+                showToast('目前沒有正在叫號的號碼可跳過', 'warning');
+                return;
+            }
+            current.status = 'skipped';
+            saveStateAndBroadcast();
+            renderAll();
+            showToast(`號碼 ${current.number} 已設為過號`, 'warning');
+        }
+
+        function completeCurrentNumber() {
+            const current = state.tickets.find(t => t.status === 'calling' && t.counterId === state.activeCounterId);
+            if (!current) {
+                showToast('目前沒有正在叫號的號碼可完成', 'warning');
+                return;
+            }
+            current.status = 'completed';
+            saveStateAndBroadcast();
+            renderAll();
+            showToast(`號碼 ${current.number} 已完成服務`, 'success');
+        }
+
+        function updateTicketStatus(id, newStatus) {
+            const t = state.tickets.find(item => item.id === id);
+            if (t) {
+                t.status = newStatus;
+                if (newStatus === 'calling') t.counterId = state.activeCounterId;
+                saveStateAndBroadcast();
+                renderAll();
+                showToast('狀態已更新', 'info');
+            }
+        }
+
+        function deleteTicket(id) {
+            state.tickets = state.tickets.filter(t => t.id !== id);
+            saveStateAndBroadcast();
+            renderAll();
+            showToast('已刪除號碼', 'info');
+        }
+
+        function resetAllData() {
+            if (confirm('確定要重置所有排隊資料嗎？')) {
+                state.tickets = [];
+                state.nextTicketNum = 1;
+                saveStateAndBroadcast();
+                renderAll();
+                showToast('已重置所有資料', 'success');
+            }
+        }
+
+        function speakCall(counterName, ticketNumber, force = false) {
+            if (!force && !state.settings.voiceEnabled) return;
+            if (!('speechSynthesis' in window)) return;
+
+            try {
+                window.speechSynthesis.cancel();
+                const cleanNum = ticketNumber.replace(/-/g, ' ').split('').join(' ');
+                const text = `請，${counterName}，${cleanNum} 號`;
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 0.9;
+
+                const voices = window.speechSynthesis.getVoices();
+                const twVoice = voices.find(v => v.lang.includes('zh'));
+                if (twVoice) utterance.voice = twVoice;
+
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.error('Speech error:', e);
+            }
+        }
+
+        function setFilter(status) {
+            state.filter = status;
+            ['all', 'waiting', 'calling', 'completed', 'skipped'].forEach(s => {
+                const btn = document.getElementById(`filter-${s}`);
+                if (btn) {
+                    btn.className = (s === status)
+                        ? "px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium transition shadow"
+                        : "px-3 py-1.5 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg text-xs font-medium transition";
+                }
+            });
+            renderQueueTable();
+        }
+
+        function renderAll() {
+            renderCounters();
+            renderDisplayView();
+            renderCounterControls();
+            renderQueueTable();
+        }
+
+        function renderCounters() {
+            const sel = document.getElementById('counter-select');
+            if (sel) {
+                sel.innerHTML = state.counters.map(c => `
+                    <option value="${c.id}" ${c.id === state.activeCounterId ? 'selected' : ''}>${c.name}</option>
+                `).join('');
+            }
+        }
+
+        function renderDisplayView() {
+            const active = state.tickets.find(t => t.status === 'calling' && t.counterId === state.activeCounterId) ||
+                           state.tickets.filter(t => t.status === 'calling').pop() ||
+                           state.tickets.filter(t => t.status === 'completed').pop();
+
+            const numEl = document.getElementById('display-active-number');
+            const counterEl = document.getElementById('display-active-counter');
+
+            if (active) {
+                const cObj = state.counters.find(c => c.id === active.counterId);
+                numEl.textContent = active.number;
+                counterEl.textContent = cObj ? `${cObj.name} 正在叫號` : '正在叫號';
+            } else {
+                numEl.textContent = '----';
+                counterEl.textContent = '目前尚無叫號';
+            }
+
+            const waitingList = state.tickets.filter(t => t.status === 'waiting');
+            const badge = document.getElementById('waiting-count-badge');
+            if (badge) badge.textContent = `${waitingList.length} 人`;
+
+            const waitingEl = document.getElementById('display-waiting-list');
+            if (waitingEl) {
+                if (waitingList.length === 0) {
+                    waitingEl.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs">目前沒有等待中的號碼</div>`;
+                } else {
+                    waitingEl.innerHTML = waitingList.map((t, idx) => `
+                        <div class="bg-slate-900/60 border border-slate-700/60 rounded-xl p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center">${idx + 1}</span>
+                                <span class="font-bold text-white text-base tracking-wider">${t.number}</span>
+                            </div>
+                            <span class="text-xs text-slate-400">${t.time}</span>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            const historyEl = document.getElementById('display-history-list');
+            if (historyEl) {
+                const history = [...state.tickets].filter(t => t.status === 'completed' || t.status === 'calling').slice(-4).reverse();
+                if (history.length === 0) {
+                    historyEl.innerHTML = `<div class="col-span-full bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 text-center text-slate-500 text-xs">尚無歷史紀錄</div>`;
+                } else {
+                    historyEl.innerHTML = history.map(t => {
+                        const cObj = state.counters.find(c => c.id === t.counterId);
+                        return `
+                            <div class="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-center flex flex-col justify-between">
+                                <div class="text-xs text-indigo-400 font-semibold mb-1">${cObj ? cObj.name : '櫃台'}</div>
+                                <div class="text-xl font-bold text-white tracking-widest">${t.number}</div>
+                                <div class="text-[10px] text-slate-500 mt-1">${t.time}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        }
+
+        function renderCounterControls() {
+            const activeC = state.counters.find(c => c.id === state.activeCounterId);
+            const nameEl = document.getElementById('ctrl-counter-name');
+            const servingEl = document.getElementById('ctrl-current-serving');
+
+            if (nameEl && activeC) nameEl.textContent = activeC.name;
+
+            const current = state.tickets.find(t => t.status === 'calling' && t.counterId === state.activeCounterId);
+            if (servingEl) servingEl.textContent = current ? current.number : '----';
+        }
+
+        function renderQueueTable() {
+            const tbody = document.getElementById('queue-table-body');
+            if (!tbody) return;
+
+            let filtered = state.tickets;
+            if (state.filter !== 'all') {
+                filtered = state.tickets.filter(t => t.status === state.filter);
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">沒有符合條件的號碼資料</td></tr>`;
+                return;
+            }
+
+            const badgeHTML = (status) => {
+                switch(status) {
+                    case 'waiting': return '<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium border border-amber-500/30">等待中</span>';
+                    case 'calling': return '<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md text-xs font-medium border border-indigo-500/30 animate-pulse">叫號中</span>';
+                    case 'completed': return '<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-md text-xs font-medium border border-emerald-500/30">已完成</span>';
+                    case 'skipped': return '<span class="px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded-md text-xs font-medium border border-rose-500/30">已過號</span>';
+                    default: return '';
+                }
+            };
+
+            tbody.innerHTML = filtered.map(t => {
+                const cObj = state.counters.find(c => c.id === t.counterId);
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3 font-bold text-white">${t.number}</td>
+                        <td class="p-3">${badgeHTML(t.status)}</td>
+                        <td class="p-3 text-slate-300">${cObj ? cObj.name : '-'}</td>
+                        <td class="p-3 text-slate-400 text-xs">${t.time}</td>
+                        <td class="p-3 text-right space-x-1">
+                            <select onchange="updateTicketStatus('${t.id}', this.value)" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none">
+                                <option value="" disabled selected>更改狀態</option>
+                                <option value="waiting">等待中</option>
+                                <option value="calling">叫號中</option>
+                                <option value="completed">已完成</option>
+                                <option value="skipped">已過號</option>
+                            </select>
+                            <button onclick="deleteTicket('${t.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition" title="刪除">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openSettingsModal() {
+            document.getElementById('setting-voice-enabled').checked = state.settings.voiceEnabled;
+            document.getElementById('setting-prefix').value = state.settings.prefix;
+            renderSettingsCounterList();
+            document.getElementById('modal-settings').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('modal-settings').classList.add('hidden');
+        }
+
+        function renderSettingsCounterList() {
+            const listEl = document.getElementById('settings-counter-list');
+            if (!listEl) return;
+            listEl.innerHTML = state.counters.map(c => `
+                <div class="flex items-center justify-between bg-slate-800 p-2.5 rounded-xl border border-slate-700">
+                    <span class="text-sm text-slate-200 font-medium">${c.name}</span>
+                    ${state.counters.length > 1 ? `
+                        <button onclick="deleteCounter('${c.id}')" class="text-rose-400 hover:text-rose-300 p-1 text-xs">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    ` : '<span class="text-xs text-slate-500">預設</span>'}
+                </div>
+            `).join('');
+        }
+
+        function saveSettings() {
+            state.settings.voiceEnabled = document.getElementById('setting-voice-enabled').checked;
+            const prefix = document.getElementById('setting-prefix').value.trim();
+            if (prefix) state.settings.prefix = prefix.toUpperCase();
+
+            saveStateAndBroadcast();
+            closeSettingsModal();
+            renderAll();
+            showToast('設定已儲存', 'success');
+        }
+
+        function openAddCounterModal() {
+            document.getElementById('new-counter-name').value = '';
+            document.getElementById('modal-add-counter').classList.remove('hidden');
+        }
+
+        function closeAddCounterModal() {
+            document.getElementById('modal-add-counter').classList.add('hidden');
+        }
+
+        function confirmAddCounter() {
+            const name = document.getElementById('new-counter-name').value.trim();
+            if (!name) {
+                showToast('請輸入櫃台名稱', 'warning');
+                return;
+            }
+            const newId = 'c_' + Date.now();
+            state.counters.push({ id: newId, name: name });
+            saveStateAndBroadcast();
+            closeAddCounterModal();
+            renderSettingsCounterList();
+            renderAll();
+            showToast(`已新增櫃台：${name}`, 'success');
+        }
+
+        function deleteCounter(id) {
+            if (state.counters.length <= 1) {
+                showToast('至少需保留一個櫃台', 'warning');
+                return;
+            }
+            state.counters = state.counters.filter(c => c.id !== id);
+            if (state.activeCounterId === id) {
+                state.activeCounterId = state.counters[0].id;
+            }
+            saveStateAndBroadcast();
+            renderSettingsCounterList();
+            renderAll();
+            showToast('已刪除櫃台', 'info');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let borderColor = 'border-indigo-500/40';
+            let icon = '<i class="fa-solid fa-circle-info text-indigo-400"></i>';
+
+            if (type === 'success') {
+                borderColor = 'border-emerald-500/40';
+                icon = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            } else if (type === 'warning') {
+                borderColor = 'border-amber-500/40';
+                icon = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i>';
+            }
+
+            toast.className = `pointer-events-auto bg-slate-900/95 border ${borderColor} text-slate-100 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm animate-in fade-in slide-in-from-bottom-3 duration-200`;
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
